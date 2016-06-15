@@ -23,6 +23,12 @@
       "ConstraintDescription" : "must be a list of an existing public facing subnets in the selected Virtual Private Cloud."
     },
 
+    "ManagementSubnets" : {
+      "Type" : "List<AWS::EC2::Subnet::Id>",
+      "Description" : "The list of SubnetIds in your Virtual Private Cloud (VPC)",
+      "ConstraintDescription" : "must be a list of an existing public facing subnets in the selected Virtual Private Cloud."
+    },
+
     "ELBName": {
       "Description" : "Name of Elastic Load Balancer",
       "Type": "String"
@@ -115,8 +121,12 @@
       "Type" : "List<String>",
       "Description" : "LB HealthCheck in format of 'Target,HealthyThreshold,UnhealthyThreshold,Interval,Timeout'",
       "ConstraintDescription" : "Sample: HTTP:80/,2,5,10,5"
-    }
+    },
 
+    "LaunchConfigInstanceRole" : {
+      "Description" : "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance. The instance profile contains the IAM role",
+      "Type": "String"
+    }
   },
 
   "Resources" : {
@@ -171,14 +181,14 @@
       },
       "CreationPolicy" : {
         "ResourceSignal" : {
-          "Timeout" : "PT30M"
+          "Timeout" : "PT15M"
         }
       },
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": "1",
           "MaxBatchSize": "1",
-          "PauseTime" : "PT30M",
+          "PauseTime" : "PT15M",
           "WaitOnResourceSignals": "true"
         }
       }
@@ -189,18 +199,19 @@
        "Properties" : {
           "AdjustmentType" : "ChangeInCapacity",
           "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
-          "Cooldown" : "1",
+          "Cooldown" : "60",
           "ScalingAdjustment" : "1"
        }
     },
+
     "CPUAlarmHigh": {
        "Type": "AWS::CloudWatch::Alarm",
        "Properties": {
-          "EvaluationPeriods": "1",
+          "EvaluationPeriods": "2",
           "Statistic": "Average",
           "Threshold": { "Ref" : "CPUThresholdUpper" },
-          "AlarmDescription": "Alarm if CPU too high or metric disappears indicating instance is down",
-          "Period": "60",
+          "AlarmDescription": { "Fn::Join" : [ "", [ "Scale-up if CPU > ", { "Ref" : "CPUThresholdUpper" }, "% for 10 minutes" ] ] },
+          "Period": "300",
           "AlarmActions": [ { "Ref": "ScaleUpPolicy" } ],
           "Namespace": "AWS/EC2",
           "Dimensions": [ {
@@ -217,18 +228,19 @@
        "Properties" : {
           "AdjustmentType" : "ChangeInCapacity",
           "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
-          "Cooldown" : "1",
-          "ScalingAdjustment" : "1"
+          "Cooldown" : "60",
+          "ScalingAdjustment" : "-1"
        }
     },
+
     "CPUAlarmLow": {
        "Type": "AWS::CloudWatch::Alarm",
        "Properties": {
-          "EvaluationPeriods": "1",
+          "EvaluationPeriods": "2",
           "Statistic": "Average",
           "Threshold": { "Ref" : "CPUThresholdLower" },
-          "AlarmDescription": "Alarm if CPU too low",
-          "Period": "60",
+          "AlarmDescription": { "Fn::Join" : [ "", [ "Scale-down if CPU < ", { "Ref" : "CPUThresholdLower" }, "% for 10 minutes" ] ] },
+          "Period": "300",
           "AlarmActions": [ { "Ref": "ScaleDownPolicy" } ],
           "Namespace": "AWS/EC2",
           "Dimensions": [ {
@@ -287,10 +299,11 @@
         }
       },
       "Properties": {
-        "ImageId" : { "Ref" : "AMIId" },
-        "InstanceType"   : { "Ref" : "InstanceType" },
-        "SecurityGroups" : [ { "Ref" : "PublicENISecurityGroup" }, { "Ref" : "PrivateENISecurityGroup" } ],
-        "KeyName"        : { "Ref" : "KeyName" },
+        "ImageId"            : { "Ref" : "AMIId" },
+        "InstanceType"       : { "Ref" : "InstanceType" },
+        "SecurityGroups"     : [ { "Ref" : "PublicENISecurityGroup" } ],
+        "KeyName"            : { "Ref" : "KeyName" },
+        "IamInstanceProfile" : { "Ref" : "LaunchConfigInstanceRole" },
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -xe\n",
           "yum update -y aws-cfn-bootstrap\n",
@@ -304,7 +317,19 @@
           "/opt/aws/bin/cfn-signal -e $? ",
           "         --stack ", { "Ref" : "AWS::StackId" },
           "         --resource AppServerGroup ",
-          "         --region ", { "Ref" : "AWS::Region" }, "\n"
+          "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+          "# Set CLI Output to text\n",
+          "export AWS_DEFAULT_OUTPUT=\"text\"\n",
+          "export AWS_DEFAULT_REGION=",{"Ref" : "AWS::Region"},"\n",
+          "# Set Instance Identity URI\n",
+          "EC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)\n",
+          "INSTANCE_ID=$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id)\n",
+
+          "MANAGEMENTSUBNETS=$(echo '", { "Ref" : "ManagementSubnets" }, "'|tr ',' '|')\n",
+          "MANAGEMENTSUBNET=$(aws ec2 describe-subnets --filters Name=availabilityZone,Values=$EC2_AVAIL_ZONE --query 'Subnets[].[SubnetId]' | egrep $MANAGEMENTSUBNETS)\n",
+          "MANAGEMENT_ENI=$(aws ec2 create-network-interface --description 'My Management interface' --subnet-id $MANAGEMENTSUBNET --groups '", { "Ref" : "PrivateENISecurityGroup" }, "'  --query 'NetworkInterface.NetworkInterfaceId')\n",
+          "aws ec2 attach-network-interface --network-interface-id $MANAGEMENT_ENI --instance-id $INSTANCE_ID --device-index 1\n"
         ]]}}
       }
     }
@@ -320,9 +345,9 @@
       "Description": "The LaunchConfig ID",
       "Value" : { "Ref" : "LaunchConfig" }
     },
-    "ElasticLoadBalancer" : {
+    "ElasticLoadBalancerURL" : {
       "Description": "The ElasticLoadBalancer ID",
-      "Value" : { "Ref" : "ElasticLoadBalancer" }
+      "Value" : { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}]]}
     }
   }
 }
