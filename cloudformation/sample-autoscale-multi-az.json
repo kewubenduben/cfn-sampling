@@ -85,22 +85,36 @@
       "ConstraintDescription" : "must be the name of an existing AMI."
     },
 
-    "CPUThresholdUpper": {
+    "CPUThresholdUpper" : {
       "Default" : "70",
       "Description" : "The lower threshold for the CPU utilisation, to trigger scaling up.",
       "Type": "Number"
     },
 
-    "CPUThresholdLower": {
+    "CPUThresholdLower" : {
       "Default" : "30",
       "Description" : "The lower threshold for the CPU utilisation, to trigger scaling down",
       "Type": "Number"
     },
 
-    "OperatorEMail": {
+    "OperatorEMail" : {
       "Description" : "The email address for SNS Notifications",
       "Type": "String",
       "ConstraintDescription" : "must be the name of an existing SNS endpoint."
+    },
+
+    "LBListener" : {
+      "Default": "80,80,HTTP",
+      "Type" : "List<String>",
+      "Description" : "Single LB Listener in format of 'LoadBalancerPort,InstancePort,Protocol'",
+      "ConstraintDescription" : "Sample: 80,80,HTTP"
+    },
+
+    "LBHealtCheck" : {
+      "Default": "HTTP:80/,2,5,10,5",
+      "Type" : "List<String>",
+      "Description" : "LB HealthCheck in format of 'Target,HealthyThreshold,UnhealthyThreshold,Interval,Timeout'",
+      "ConstraintDescription" : "Sample: HTTP:80/,2,5,10,5"
     }
 
   },
@@ -114,27 +128,19 @@
         "CrossZone" : "true",
         "SecurityGroups" : [ { "Ref" : "ELBSecurityGroup" } ],
         "Subnets" : { "Ref" : "ELBSubnets" },
-        "LBCookieStickinessPolicy" : [ {
-          "PolicyName" : "CookieBasedPolicy",
-          "CookieExpirationPeriod" : "30"
-        } ],
+        "LBCookieStickinessPolicy" : [  ],
         "Listeners" : [ {
-          "LoadBalancerPort" : "80",
-          "InstancePort" : "80",
-          "Protocol" : "HTTP",
-          "PolicyNames" : [ "CookieBasedPolicy" ]
-        }, {
-          "LoadBalancerPort" : "22",
-          "InstancePort" : "22",
-          "Protocol" : "TCP",
+          "LoadBalancerPort" : { "Fn::Select" : [ 0, { "Ref": "LBListener" } ] },
+          "InstancePort" : { "Fn::Select" : [ 1, { "Ref": "LBListener" } ] },
+          "Protocol" : { "Fn::Select" : [ 2, { "Ref": "LBListener" } ] },
           "PolicyNames" : [ ]
-        } ],
+        }],
         "HealthCheck" : {
-          "Target" : "HTTP:80/",
-          "HealthyThreshold" : "2",
-          "UnhealthyThreshold" : "5",
-          "Interval" : "10",
-          "Timeout" : "5"
+          "Target" : { "Fn::Select" : [ 0, { "Ref": "LBHealtCheck" } ] },
+          "HealthyThreshold" : { "Fn::Select" : [ 1, { "Ref": "LBHealtCheck" } ] },
+          "UnhealthyThreshold" : { "Fn::Select" : [ 2, { "Ref": "LBHealtCheck" } ] },
+          "Interval" : { "Fn::Select" : [ 3, { "Ref": "LBHealtCheck" } ] },
+          "Timeout" : { "Fn::Select" : [ 4, { "Ref": "LBHealtCheck" } ] }
         }
       }
     },
