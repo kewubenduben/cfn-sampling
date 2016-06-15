@@ -95,6 +95,12 @@
       "Default" : "30",
       "Description" : "The lower threshold for the CPU utilisation, to trigger scaling down",
       "Type": "Number"
+    },
+
+    "OperatorEMail": {
+      "Description" : "The email address for SNS Notifications",
+      "Type": "String",
+      "ConstraintDescription" : "must be the name of an existing SNS endpoint."
     }
 
   },
@@ -133,6 +139,13 @@
       }
     },
 
+    "NotificationTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "Subscription": [ { "Endpoint": { "Ref": "OperatorEMail" }, "Protocol": "email" } ]
+      }
+    },
+
     "AppServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
@@ -141,7 +154,14 @@
         "MinSize" : { "Ref" : "AppServerMinCapacity" },
         "MaxSize" : { "Ref" : "AppServerMaxCapacity" },
         "DesiredCapacity" : { "Ref" : "AppServerDesiredCapacity" },
-        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
+        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+        "NotificationConfigurations" : [{
+          "TopicARN" : { "Ref" : "NotificationTopic" },
+          "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
+                                  "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
+                                  "autoscaling:EC2_INSTANCE_TERMINATE",
+                                  "autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
+        }]
       },
       "CreationPolicy" : {
         "ResourceSignal" : {
