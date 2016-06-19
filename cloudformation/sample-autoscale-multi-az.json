@@ -123,6 +123,20 @@
       "ConstraintDescription" : "Sample: HTTP:80/,2,5,10,5"
     },
 
+    "BlockDeviceMapping0" : {
+      "Default": "/dev/xvda,,30,gp2,100,true",
+      "Type" : "CommaDelimitedList",
+      "Description" : "Main block device mapping in format of 'DeviceName,SnapshotId,VolumeSize,VolumeType,DeleteOnTermination'",
+      "ConstraintDescription" : "Sample: /dev/sda1,snap-xxxx,50,io1,100,true"
+    },
+
+    "BlockDeviceMapping1" : {
+      "Default": "/dev/sdb,,30,gp2,100,true",
+      "Type" : "CommaDelimitedList",
+      "Description" : "Extra block device mapping in format of 'DeviceName,SnapshotId,VolumeSize,VolumeType,DeleteOnTermination'",
+      "ConstraintDescription" : "Sample: /dev/sdb,snap-xxxx,50,io1,100,true"
+    },
+
     "LaunchConfigInstanceRole" : {
       "Description" : "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance. The instance profile contains the IAM role",
       "Type": "String"
@@ -304,6 +318,28 @@
         "SecurityGroups"     : [ { "Ref" : "PublicENISecurityGroup" } ],
         "KeyName"            : { "Ref" : "KeyName" },
         "IamInstanceProfile" : { "Ref" : "LaunchConfigInstanceRole" },
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : { "Fn::Select" : [ 0, { "Ref": "BlockDeviceMapping0" } ] },
+            "Ebs" : {
+              "SnapshotId" : { "Fn::Select" : [ 1, { "Ref": "BlockDeviceMapping0" } ] },
+              "VolumeSize" : { "Fn::Select" : [ 2, { "Ref": "BlockDeviceMapping0" } ] },
+              "VolumeType" : { "Fn::Select" : [ 3, { "Ref": "BlockDeviceMapping0" } ] },
+              "Iops" : { "Fn::Select" : [ 4, { "Ref": "BlockDeviceMapping0" } ] },
+              "DeleteOnTermination" : { "Fn::Select" : [ 5, { "Ref": "BlockDeviceMapping0" } ] }
+            }
+          },
+          {
+            "DeviceName" : { "Fn::Select" : [ 0, { "Ref": "BlockDeviceMapping1" } ] },
+            "Ebs" : {
+              "SnapshotId" : { "Fn::Select" : [ 1, { "Ref": "BlockDeviceMapping1" } ] },
+              "VolumeSize" : { "Fn::Select" : [ 2, { "Ref": "BlockDeviceMapping1" } ] },
+              "VolumeType" : { "Fn::Select" : [ 3, { "Ref": "BlockDeviceMapping1" } ] },
+              "Iops" : { "Fn::Select" : [ 4, { "Ref": "BlockDeviceMapping1" } ] },
+              "DeleteOnTermination" : { "Fn::Select" : [ 5, { "Ref": "BlockDeviceMapping1" } ] }
+            }
+          }
+        ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -xe\n",
           "yum update -y aws-cfn-bootstrap\n",
