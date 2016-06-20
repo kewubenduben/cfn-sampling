@@ -29,8 +29,14 @@
       "ConstraintDescription" : "must be a list of an existing public facing subnets in the selected Virtual Private Cloud."
     },
 
-    "ELBName": {
+    "ELBName" : {
       "Description" : "Name of Elastic Load Balancer",
+      "Type": "String"
+    },
+
+    "ELBScheme" : {
+      "Default" : "internet-facing",
+      "Description" : "Specify if ELB is internet-facing or internal",
       "Type": "String"
     },
 
@@ -150,6 +156,7 @@
         "LoadBalancerName" : { "Ref" : "ELBName" },
         "CrossZone" : "true",
         "SecurityGroups" : [ { "Ref" : "ELBSecurityGroup" } ],
+        "Scheme" : { "Ref" : "ELBScheme" },
         "Subnets" : { "Ref" : "ELBSubnets" },
         "LBCookieStickinessPolicy" : [  ],
         "Listeners" : [ {
