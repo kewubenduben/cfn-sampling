@@ -145,13 +145,24 @@
       "Default": "",
       "Description" : "The launch config User Data",
       "Type": "String"
+    },
+
+    "CreateELB" : {
+      "Default": "yes",
+      "Description" : "Anything that isn't yes is NO.",
+      "Type": "String"
     }
+  },
+
+  "Conditions": {
+    "WillCreateNewELB": { "Fn::Equals" : [ { "Ref" : "CreateELB" }, "yes" ] }
   },
 
   "Resources" : {
 
     "ElasticLoadBalancer" : {
       "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Condition": "WillCreateNewELB",
       "Properties" : {
         "LoadBalancerName" : { "Ref" : "ELBName" },
         "CrossZone" : "true",
@@ -190,7 +201,12 @@
         "MinSize" : { "Ref" : "AppServerMinCapacity" },
         "MaxSize" : { "Ref" : "AppServerMaxCapacity" },
         "DesiredCapacity" : { "Ref" : "AppServerDesiredCapacity" },
-        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+        "LoadBalancerNames" : [ {
+          "Fn::If" : [ "WillCreateNewELB",
+            { "Ref" : "ElasticLoadBalancer" },
+            { "Ref" : "ELBName" }
+          ]
+        } ],
         "NotificationConfigurations" : [{
           "TopicARN" : { "Ref" : "NotificationTopic" },
           "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
@@ -305,10 +321,6 @@
     "LaunchConfig" : {
       "Description": "The LaunchConfig ID",
       "Value" : { "Ref" : "LaunchConfig" }
-    },
-    "ElasticLoadBalancerURL" : {
-      "Description": "The ElasticLoadBalancer URL",
-      "Value" : { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] } ] ] }
     }
   }
 }
