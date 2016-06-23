@@ -34,9 +34,17 @@
       "Type": "String"
     },
 
+    "CreateELB" : {
+      "Default": "yes",
+      "Description" : "Create a new ELB resource. If 'no', it will reuse the ELBName.",
+      "AllowedValues" : ["yes", "no"],
+      "Type": "String"
+    },
+
     "ELBScheme" : {
       "Default" : "internet-facing",
       "Description" : "Specify if ELB is internet-facing or internal",
+      "AllowedValues" : [ "internet-facing", "internal" ],
       "Type": "String"
     },
 
@@ -141,15 +149,9 @@
       "Type": "String"
     },
 
-    "LaunchConfigUserData" : {
+    "LaunchConfigBase64UserData" : {
       "Default": "",
-      "Description" : "The launch config User Data",
-      "Type": "String"
-    },
-
-    "CreateELB" : {
-      "Default": "yes",
-      "Description" : "Anything that isn't yes is NO.",
+      "Description" : "The launch config Base64 encoded User Data",
       "Type": "String"
     }
   },
@@ -307,7 +309,7 @@
             }
           }
         ],
-        "UserData"       : { "Fn::Base64" : { "Ref" : "LaunchConfigUserData" }}
+        "UserData"       : { "Ref" : "LaunchConfigBase64UserData" }
       }
     }
 
