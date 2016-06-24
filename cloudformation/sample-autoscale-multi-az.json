@@ -54,21 +54,21 @@
       "ConstraintDescription" : "must be a list of an existing subnets in the selected Virtual Private Cloud."
     },
 
-    "ELBSecurityGroup": {
+    "ELBSecurityGroups": {
       "Description" : "Name of an existing ELB Security Group",
-      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>",
       "ConstraintDescription" : "must be the name of an existing Security Group."
     },
 
-    "PublicENISecurityGroup": {
+    "PublicENISecurityGroups": {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
-      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>",
       "ConstraintDescription" : "must be the name of an existing Security Group."
     },
 
-    "PrivateENISecurityGroup": {
+    "PrivateENISecurityGroups": {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
-      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>",
       "ConstraintDescription" : "must be the name of an existing Security Group."
     },
 
@@ -117,7 +117,7 @@
       "Type": "Number"
     },
 
-    "OperatorEMail" : {
+    "OperatorEmail" : {
       "Description" : "The email address for SNS Notifications",
       "Type": "String",
       "ConstraintDescription" : "must be the name of an existing SNS endpoint."
@@ -168,7 +168,7 @@
       "Properties" : {
         "LoadBalancerName" : { "Ref" : "ELBName" },
         "CrossZone" : "true",
-        "SecurityGroups" : [ { "Ref" : "ELBSecurityGroup" } ],
+        "SecurityGroups" : { "Ref" : "ELBSecurityGroups" },
         "Scheme" : { "Ref" : "ELBScheme" },
         "Subnets" : { "Ref" : "ELBSubnets" },
         "LBCookieStickinessPolicy" : [  ],
@@ -191,7 +191,7 @@
     "NotificationTopic": {
       "Type": "AWS::SNS::Topic",
       "Properties": {
-        "Subscription": [ { "Endpoint": { "Ref": "OperatorEMail" }, "Protocol": "email" } ]
+        "Subscription": [ { "Endpoint": { "Ref": "OperatorEmail" }, "Protocol": "email" } ]
       }
     },
 
@@ -295,7 +295,7 @@
       "Properties": {
         "ImageId"            : { "Ref" : "AMIId" },
         "InstanceType"       : { "Ref" : "InstanceType" },
-        "SecurityGroups"     : [ { "Ref" : "PublicENISecurityGroup" } ],
+        "SecurityGroups"     : { "Ref" : "PublicENISecurityGroups" },
         "KeyName"            : { "Ref" : "KeyName" },
         "IamInstanceProfile" : { "Ref" : "LaunchConfigInstanceRole" },
         "BlockDeviceMappings" : [
