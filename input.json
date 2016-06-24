@@ -1,0 +1,81 @@
+{
+  "Parameters": [
+    {
+      "ParameterKey": "VpcId",
+      "ParameterValue": "vpc-33c6c956",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "ELBName",
+      "ParameterValue": "MyExistingWebserver",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "KeyName",
+      "ParameterValue": "thecantero",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "AMIId",
+      "ParameterValue": "ami-a2c111c1",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "MainSubnets",
+      "ParameterValue": "subnet-445da932,subnet-7ffb001b",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "ManagementSubnets",
+      "ParameterValue": "subnet-085da97e,subnet-53fb0037",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "PublicENISecurityGroup",
+      "ParameterValue": "sg-d56602b1",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "PrivateENISecurityGroup",
+      "ParameterValue": "sg-af6602cb",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "ELBSecurityGroup",
+      "ParameterValue": "sg-1e67037a",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "ELBSubnets",
+      "ParameterValue": "subnet-445da932,subnet-7ffb001b",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "OperatorEMail",
+      "ParameterValue": "thecantero@gmail.com",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "LaunchConfigInstanceRole",
+      "ParameterValue": "LCInstanceRole",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "LaunchConfigUserData",
+      "ParameterValue": "#!/bin/bash -xe\n# Set CLI Output to text\nexport AWS_DEFAULT_OUTPUT=text\nexport AWS_DEFAULT_REGION=ap-southeast-1\nyum update -y aws-cfn-bootstrap\nSTACKID=$(aws cloudformation describe-stacks --stack-name webserver --query 'Stacks[0].StackId' --output text)\n/opt/aws/bin/cfn-init -v          --stack $STACKID        --resource LaunchConfig          --configsets full_install          --region ap-southeast-1\n/opt/aws/bin/cfn-signal -e $?          --stack $STACKID        --resource AppServerGroup          --region ap-southeast-1\n# Set Instance Identity URI\nEC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)\nINSTANCE_ID=$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id)\nMANAGEMENTSUBNET=$(aws ec2 describe-subnets --filters Name=availabilityZone,Values=$EC2_AVAIL_ZONE          --query 'Subnets[].[SubnetId]' | egrep 'subnet-085da97e|subnet-53fb0037'\nMANAGEMENT_ENI=$(aws ec2 create-network-interface --description 'My Management interface'          --subnet-id $MANAGEMENTSUBNET --groups 'sg-af6602cb'  --query 'NetworkInterface.NetworkInterfaceId')\naws ec2 attach-network-interface --network-interface-id $MANAGEMENT_ENI --instance-id $INSTANCE_ID --device-index 1\n",
+      "UsePreviousValue": false
+    },
+    {
+      "ParameterKey": "CreateELB",
+      "ParameterValue": "no",
+      "UsePreviousValue": false
+    }
+  ],
+
+  "Tags": [
+    {
+      "Key": "env",
+      "Value": "development"
+    }
+  ]
+}
